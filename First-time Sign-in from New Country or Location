@@ -1,0 +1,43 @@
+//First-time Sign-in from New Country or Location
+
+
+Title: Detecting Sign-ins from New Countries Using AADSignInEventsBeta
+Objective: Identify sign-in events where users have accessed resources from countries they haven't previously signed in from, using the AADSignInEventsBeta schema. This helps detect potential account compromise or unauthorized access.
+
+let historical = materialize (
+    AADSignInEventsBeta
+    | where Timestamp between (ago(30d) .. ago(2d))
+    | summarize KnownCountries = make_set(Country) by AccountUpn
+);
+AADSignInEventsBeta
+| where Timestamp > ago(1d)
+| join kind=leftouter historical on AccountUpn
+| where isnotempty(Country)
+| extend IsNewCountry = iff(KnownCountries has Country, false, true)
+| where IsNewCountry == true
+| project Timestamp, AccountUpn, Country, IPAddress, City, Application
+
+//Here’s a breakdown of your KQL query line by line
+Step 1: Create a historical reference of known countries per user
+
+Purpose: Build a reference table of countries each user has signed in from over the past 30 to 2 days.
+materialize: Optimizes performance by caching the result.
+make_set(Country): Collects all unique countries per user
+
+Step 2: Filter recent sign-ins (last 1 day)
+Step 3: Join recent sign-ins with historical data
+Purpose: Attach historical country data to each recent sign-in.
+leftouter: Ensures all recent sign-ins are retained, even if no historical data exists.
+
+Step 4: Filter out empty country values
+Purpose: Remove sign-ins where country information is missing.
+
+Step 5: Determine if the country is new for the user
+Purpose: Flag sign-ins from countries not seen in the historical data.
+
+Step 6: Filter for new country sign-ins
+Purpose: Only keep sign-ins from new countries.
+
+Step 7: Project relevant details
+Purpose: Display key information for investigation.
+
