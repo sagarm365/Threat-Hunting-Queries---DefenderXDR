@@ -1,6 +1,5 @@
 //First-time Sign-in from New Country or Location
 
-
 Title: Detecting Sign-ins from New Countries Using AADSignInEventsBeta
 Objective: Identify sign-in events where users have accessed resources from countries they haven't previously signed in from, using the AADSignInEventsBeta schema. This helps detect potential account compromise or unauthorized access.
 
