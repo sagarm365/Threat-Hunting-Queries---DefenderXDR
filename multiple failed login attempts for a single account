@@ -1,0 +1,14 @@
+Multiple failed login attempts for a single account (more than 10 failed login attempts within an hour)
+//Detect Suspected Brute Force Attack
+
+Title: Brute Force Attack Detection via Failed Logon Analysis
+Objective:
+This KQL query detects suspected brute-force attacks by analyzing repeated failed logon attempts within a short time window. 
+It queries the IdentityLogonEvents table to identify accounts experiencing more than 10 failed logins in one hour, potentially indicating credential guessing, brute-force attacks, or authentication misconfigurations. The query provides details such as the account name, IP address, ISP, device, and failure reason to support security investigations and incident response.
+
+IdentityLogonEvents
+| where ActionType == "LogonFailed" 
+| summarize FailedAttempts = count() by AccountName, bin(Timestamp, 1h), AccountUpn, ActionType, IPAddress, ISP, DeviceName, FailureReason
+| where FailedAttempts > 10
+| project Timestamp, AccountName, FailedAttempts, FailureReason, AccountUpn, ActionType, IPAddress, ISP, DeviceName
+| order by Timestamp, FailedAttempts desc 
