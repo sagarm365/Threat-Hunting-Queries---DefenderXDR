@@ -1,0 +1,22 @@
+Microsoft Entra ID logon failures >5 in 1 hour
+
+//As part of daily threat hunting in Microsoft Entra ID (formerly Azure AD), it's crucial to monitor for signs of credential-based attacks. Here's a simple yet powerful KQL query I use to detect multiple failed sign-in attempts that could indicate brute-force or password spraying activity:
+
+🧪 Detection Logic:
+1. Filters for error codes 50126 & 50053, which indicate invalid credentials or account lockouts.
+2. Aggregates failed sign-ins by IP address, user, and hourly bins.
+3. Flags IPs with more than 5 failed attempts in an hour.
+
+📊 Use Case:
+This helps identify:
+1. Repeated login failures from the same IP
+2. Potential brute-force or credential stuffing attempts
+3. Accounts under attack or misconfigured clients
+
+AADSignInEventsBeta
+| where ErrorCode == "50126" or ErrorCode == "50053"// Indicates invalid username or password
+| summarize FailedAttempts = count() by bin(Timestamp, 1h), IPAddress, AccountDisplayName, AccountUpn, Application, RiskLevelAggregated, City, Country
+| where FailedAttempts > 5
+| project Timestamp, IPAddress, FailedAttempts, AccountDisplayName, AccountUpn, RiskLevelAggregated, City, Country
+
+#ThreatHunting #MicrosoftEntra #KQL #SOC #CyberSecurity #AzureAD #DetectionEngineering #BlueTeam
