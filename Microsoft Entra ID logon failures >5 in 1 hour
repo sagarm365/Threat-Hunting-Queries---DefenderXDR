@@ -1,4 +1,4 @@
-Microsoft Entra ID logon failures >5 in 1 hour
+Microsoft Entra ID logon failUres >5 in 1 hour
 
 //As part of daily threat hunting in Microsoft Entra ID (formerly Azure AD), it's crucial to monitor for signs of credential-based attacks. Here's a simple yet powerful KQL query I use to detect multiple failed sign-in attempts that could indicate brute-force or password spraying activity:
 
