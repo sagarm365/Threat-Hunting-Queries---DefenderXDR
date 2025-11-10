@@ -1,0 +1,8 @@
+// Failed Login Attempts by User and Endpoint
+
+//This query analyzes login events to identify users with more than five failed login attempts. It filters for login-related events, groups the data by username, endpoint name, failure reason, login type, and associated indicators, then counts the number of failed attempts. The results are sorted in descending order of failed attempts to highlight potentially suspicious activity.
+
+| filter (event.category = 'logins')
+| group FailedAttempts = count(event.login.loginIsSuccessful = false) by  event.login.userName, endpoint.name, event.login.failureReason, event.category, endpoint.type, event.login.type, indicator.category, indicator.name 
+| filter FailedAttempts > 5
+| sort -FailedAttempts
