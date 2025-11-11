@@ -1,0 +1,4 @@
+DeviceInfo
+| where Timestamp > ago(30d)
+| summarize arg_max(Timestamp, *) by DeviceName
+| where MitigationStatus contains "Isolated"
