@@ -1,0 +1,8 @@
+IdentityLogonEvents
+| where Timestamp > ago(1h)  //1d / 1h
+| where isnotempty(Location) and isnotempty(AccountDisplayName)
+| summarize CountriesAccessed = dcount(Location), CountryList = make_set(Location), LogonCount = count(), IPList = make_set(IPAddress) 
+    by AccountDisplayName, bin(Timestamp, 1d)
+| where CountriesAccessed >= 3 //2/3
+| project Timestamp, AccountDisplayName, CountriesAccessed, CountryList, IPList, LogonCount
+| order by CountriesAccessed desc
