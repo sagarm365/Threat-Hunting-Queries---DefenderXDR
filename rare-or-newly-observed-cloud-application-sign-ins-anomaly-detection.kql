@@ -1,0 +1,10 @@
+let historical = AADSignInEventsBeta
+| where Timestamp between (ago(30d) .. ago(1d))
+| summarize HistCount=count() by Application;
+AADSignInEventsBeta
+| where Timestamp >= ago(1d)
+| summarize TodayCount=count(), Users=make_set(AccountUpn, 25) by Application
+| join kind=leftouter historical on Application
+| extend HistCount = tolong(HistCount)
+| where isempty(HistCount) or HistCount < 20  // rarity threshold
+| order by TodayCount desc
