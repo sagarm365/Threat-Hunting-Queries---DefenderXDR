@@ -1,0 +1,15 @@
+
+let clicks = UrlClickEvents
+| where Timestamp > ago(24h)
+| where ThreatTypes has "Phish"
+| where IsClickedThrough == "true"
+| project AccountUpn, ClickTime = Timestamp, ClickIP = IPAddress, Url;
+AADSignInEventsBeta
+| where Timestamp > ago(24h)
+| where ErrorCode == 0
+| where AuthenticationRequirement == "multiFactorAuthentication"
+| join kind=inner clicks on AccountUpn
+| where abs(datetime_diff("minute", Timestamp, ClickTime)) <= 10
+| where IPAddress != ClickIP
+| project Timestamp, AccountUpn, ClickTime, ClickIP, SignInIP = IPAddress, Country,  City, Application, Browser, UserAgent, Url
+| order by Timestamp desc
