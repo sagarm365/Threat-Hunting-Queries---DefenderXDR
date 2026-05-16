@@ -1,0 +1,76 @@
+let UserBaseline = AADSignInEventsBeta
+| where Timestamp between (ago(14d) .. ago(1d))
+| where ErrorCode == 0
+| summarize
+    KnownCountries = make_set(Country, 20),
+    KnownBrowsers  = make_set(Browser, 20),
+    KnownIPs       = make_set(IPAddress, 50),
+    KnownDevices   = make_set(DeviceName, 30)
+    by AccountUpn;
+// Current Session Activity (24 Hours)
+let CurrentSessions = AADSignInEventsBeta
+| where Timestamp > ago(24h)
+| where ErrorCode == 0
+| where isnotempty(SessionId)
+| summarize
+    IPs              = make_set(IPAddress, 10),
+    Countries        = make_set(Country, 10),
+    Browsers         = make_set(Browser, 10),
+    UserAgents       = make_set(UserAgent, 10),
+    Applications     = make_set(Application, 10),
+    DeviceNames      = make_set(DeviceName, 10),
+    SignInCount      = count(),
+    FirstSeen        = min(Timestamp),
+    LastSeen         = max(Timestamp)
+    by AccountUpn, SessionId
+// Core replay indicators
+| where array_length(IPs) > 1
+| where array_length(Browsers) > 1;
+// Correlation & Enrichment
+CurrentSessions
+| join kind=leftouter UserBaseline on AccountUpn
+// Accounts with baseline only
+| where isnotempty(KnownCountries)
+// Identify New/Abnormal Behavior
+| extend NewCountries = set_difference(Countries, KnownCountries)
+| extend NewBrowsers =  set_difference(Browsers, KnownBrowsers)
+| extend NewIPs =  set_difference(IPs, KnownIPs)
+| extend NewDevices =   set_difference(DeviceNames, KnownDevices)
+// Risk Scoring
+| extend RiskScore =
+    (array_length(NewBrowsers)  * 3) +
+    (array_length(NewDevices)   * 3) +
+    (array_length(NewIPs)       * 2) +
+    (array_length(NewCountries) * 1)
+// Session Metrics
+| extend SessionDurationMinutes =  datetime_diff("minute", LastSeen, FirstSeen)
+// False Positive Reduction
+// Require abnormal behavior
+| where
+    array_length(NewBrowsers) > 0
+    or array_length(NewDevices) > 0
+    or array_length(NewIPs) > 1
+// Reduce token refresh noise
+| where SignInCount >= 2
+// Minimum suspiciousness threshold
+| where RiskScore >= 3
+// Account Classification
+| extend AccountType =
+    case(
+        AccountUpn startswith "svc-", "Service Account",
+        AccountUpn startswith "app-", "Application Account",
+        AccountUpn contains "admin", "Privileged Account",
+        "User Account"
+    )
+// Priority Classification
+| extend Priority =
+    case(
+        RiskScore >= 8 and AccountType == "Privileged Account", "Critical",
+        RiskScore >= 6, "High",
+        RiskScore >= 3, "Medium",
+        "Low"
+    )
+// Reduce Common Microsoft Noise
+| where not(Applications has "Microsoft Teams")
+| project Timestamp = LastSeen, Priority, RiskScore, AccountUpn, AccountType, SessionId, SignInCount, SessionDurationMinutes, FirstSeen, LastSeen, Countries, NewCountries, IPs, NewIPs, Browsers, NewBrowsers, DeviceNames,   NewDevices, UserAgents, Applications
+| order by RiskScore desc, LastSeen desc
